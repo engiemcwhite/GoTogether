@@ -1,0 +1,30 @@
+﻿@page
+    <table style="font-weight: bold" class="HUD alert alert-info">
+        <tbody>
+            <tr>
+                <td class="col-sm-1 text-right">
+                    Your message:
+                </td>
+                <td colspan="2" class="col-sm-3">
+                    <input type="text" id="messageInput" class="col-sm-3 col-md-3 form-control" />
+                </td>
+            </tr>
+            <tr>
+                <td class="col-sm-1 text-right">
+                    Your name:
+                </td>
+                <td class="col-sm-2">
+                    <input type="text" id="userInput" class="col-sm-3 col-md-3 form-control"/>
+                </td>
+                <td class="col-sm-1">
+                    <input class="btn btn-primary" type="button" id="sendButton" value="Send Message" />
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" style="font-family: 'Courier New';">
+                    <ul id="messagesList" style="display: block; overflow-y: scroll; height: 120px"></ul>
+                </td>
+            </tr>
+        </tbody>
+    </div>
+    @Html.Partial("Maps")

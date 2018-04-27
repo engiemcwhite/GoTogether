@@ -1,0 +1,16 @@
+{
+  "name": "sigR",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aspnet/signalr": "^1.0.0-preview2-final",
+    "eslint": "^4.19.1"
+  }
+}
