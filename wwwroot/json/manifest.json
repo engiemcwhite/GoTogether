@@ -3,7 +3,7 @@
   "name": "Let's Go Together",
   "icons": [
     {
-      "src": "Icon.png",
+      "src": "/images/icon.png",
       "type": "image/png",
       "sizes": "128x128"
     }
