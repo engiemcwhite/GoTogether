@@ -9,8 +9,8 @@ namespace sigR.Hubs{
             await Clients.All.SendAsync("ReceiveMessage",user,message);
         }
 
-        public async Task SendCoordinates(double lat, double lon){
-            await Clients.All.SendAsync("ReceiveCoordinates",lat,lon);
+        public async Task SendCoordinates(string ConnectionId,string ClientUserName,double Latitude,double Longitude){
+            await Clients.Others.SendAsync("ReceiveCoordinates",ConnectionId,ClientUserName,Latitude,Longitude);
         }
 
     }
