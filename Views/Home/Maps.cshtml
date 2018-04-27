@@ -8,20 +8,133 @@
 	<script type="text/javascript" src="http://maps.google.com/maps/api/js?v=3&key=AIzaSyBRRdd3U90BFHayGj4Y2zevGYc1t-VZd6w&language=en&libraries=geometry"></script>
 	<script type="text/javascript">
 
-		// you can specify the default lat long
 		var mapDiv,mapOptions,map;
-		var breadcrumbs = new google.maps.MVCArray();
-		var polylineOptions,polyline;
-		var currentPath, trailrunner;
+		var markers = {};
+		// markers is a dictionary
+		// the key of each dictionary will be the connection id of a user
+		// the value of each entry will consist of an array, thus:
+		// markers[key] = []
+		// the array will be composed of the following elements
+		// markers[key][0] = The Connection Id
+		// markers[key][1] = The User's Name
+		// markers[key][2] = The Latitude
+		// markers[key][3] = The Longitude
+		// therefore, each client must store these values
+		// so that at any unspecting moment, these values can be passed off to sockets
+		// allowing markers to be refreshed on the other clients
+			var connectionId, clientUserName, latitude, longitude;
+		// a seperate markers object dictionary will allow
+		// individual markers to be accessed and changed one at a time
+			var markerObjs = {};
+
+		// **************
+		// DOCUMENT READY
+		// **************
 
 		$(document).ready(function() {
 				initLocationProcedure();
 		});
 
+		// ************
+		// JOIN THE HUB
+		// ************
+
+		const connection = new signalR.HubConnection(
+			"/chathub", { logger: signalR.LogLevel.Information });
+
+        // ***********************
+		// RETREIVE ID ON CALLBACK
+		// ***********************
+
+		$.connection.hub.start().done(function () {
+			console.log("id : %o", $.connection.hub.id);
+			connectionId = $.connection.hub.id;
+		});
+
+		// ****************
+		// RECEIVE MESSAGES
+		// ****************
+
+		connection.on("ReceiveMessage", (user, message) => { 
+			const encodedMsg = user + ": " + message;
+			const li = document.createElement("li");
+			li.textContent = encodedMsg;
+			document.getElementById("messagesList").prepend(li);
+		});
+
+        // ***********************************
+		// RECEIVE COORDINATES AND DRAW MARKER
+		// ***********************************
+
+		connection.on("ReceiveCoordinates", (id, name, lat, lon) => {
+			markers[id] = [name,lat,lon];
+			DrawMarker(id,name,lat,lon);
+		})
+
+		// ***********   *************************
+		// DRAW MARKER & SEND COORDINATES IF MATCH
+		// ***********   *************************
+
+		function DrawMarker(id, name, lat, lon)
+		{
+			var position = new google.maps.LatLng(lat,lon);
+			if(id in markerObjs)
+			{
+				markerObjs[id].setPosition(position);
+			}
+			else
+			{
+				markerObjs[id] = new google.maps.Marker({
+					map: map,
+					position: position,
+					label: {
+						color: 'white',
+						fontWeight: 'bold',
+						text: name,
+					},
+					icon: {
+						labelOrigin: new google.maps.Point(11, 50),
+						url: '/images/default_marker.png',
+						size: new google.maps.Size(22, 40),
+						origin: new google.maps.Point(0, 0),
+						anchor: new google.maps.Point(11, 40),
+					},
+				});
+			}
+			if(id == connectionId)
+			{
+				userClientMarker = markerObjs[id];
+				connection.invoke("SendCoordinates",id,name,lat,long).catch(err => console.error);
+			}
+		}
+
+		// *************   *******************
+		// SEND MESSAGES & ESTABLISH USER NAME
+		// *************   *******************
+
+		document.getElementById("sendButton").addEventListener("click", event => {
+			event.preventDefault();
+			const user = $("#userInput").value;
+			const message = $("#messageInput").value;
+			if( user.length == 0 || message.length == 0 )
+			{
+				return;
+			}
+			clientUserName = user;
+			connection.invoke("SendMessage", user, message).catch(err => console.error);
+			$("#messageInput").val("");
+		});
+
+		connection.start().catch(err => console.error);
+
+        // **************
+		// GOOGLE MAPPING
+		// **************
+
 		function initLocationProcedure() {
-			  console.log("initLocationProcedure()");
+				console.log("initLocationProcedure()");
 				initializeMap();
-				initializePolyline();
+				//initializePolyline();
 				if (navigator.geolocation) {
 						navigator.geolocation.getCurrentPosition(displayAndWatch, locError);
 				} else {
@@ -29,6 +142,10 @@
 						alert("Your browser does not support the Geolocation API!");
 				}
 		}
+
+		// **********
+		// CREATE MAP
+		// **********
 
 		function initializeMap() {
 			console.log("initializeMap()");
@@ -42,21 +159,14 @@
 			map = new google.maps.Map(mapDiv,mapOptions);
 		}
 
-		function initializePolyline() {
-			console.log("initializePolyline()");
-			polylineOptions = {
-				path: breadcrumbs,
-				strokeColor: "#AAFFAA",
-				strokeweight: 3
-			};
-			polyline = new google.maps.Polyline(polylineOptions);
-			polyline.setMap(map);
-		}
-
 		function locError(error) {
 			// tell the user if the current position could not be located
 			alert("The current position could not be found!");
 		}
+
+		// *********************************************
+		// THIS FUNCTION IS FOR TRACKING THE CLIENT USER
+		// *********************************************
 
 		function displayAndWatch(position) {
 			// set current position
@@ -65,19 +175,28 @@
 			watchCurrentPosition();
 		}
 
+       // *****************************************************************
+	   // THIS FUNCTION ACQUIRES THE COORDINATES AND PASSES THEM TO THE MAP
+	   // *****************************************************************
+	   
+
 		function setCurrentPosition(position) {
 			console.log("setCurrentPosition()");
-			var point = new google.maps.LatLng(position.coords.latitude,position.coords.longitude);
-			currentPath = polyline.getPath();
-			trailrunner = new google.maps.Marker({
-				map: map,
-				position: point,
-				title: "Hello World! #"+(currentPath.getLength()+1)
-			});
+			latitude = position.coords.latitude;
+			longitude = position.coords.longitude;
+			var point = new google.maps.LatLng(latitude,longitude);
 			map.panTo(point);
-			currentPath.push(point);
-			console.log(currentPath);
+			if(connectionId != null && clientUserName != null)
+			{
+				markers[connectionId] = [clientUserName,latitude,longitude];
+				DrawMarker(connectionId,clientUserName,latitude,longitude);
+
+			}
 		}
+
+		// **************************************************************************
+		// THIS FUNCTION CALLS setCurrentPosition WHENEVER A NEW LOCATION IS DETECTED
+		// **************************************************************************
 
 		function watchCurrentPosition() {
 			console.log("watchCurrentPosition");
